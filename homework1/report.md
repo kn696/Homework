@@ -70,7 +70,8 @@ int main()
 ### 量測程式
 
 使用clock來做計算
-以下為主要程式碼:
+
+以下為測量程式碼:
 
 ```cpp
 #include <iostream>
@@ -202,7 +203,8 @@ int main() {
 ### 量測程式
 
 使用clock來做計算
-以下為主要程式碼:
+
+以下為測量程式碼:
 
 ```cpp
 #include <iostream>
@@ -344,7 +346,8 @@ int main() {
 ### 量測程式
 
 使用clock來做計算
-以下為主要程式碼:
+
+以下為測量程式碼:
 
 ```cpp
 #include <iostream>
