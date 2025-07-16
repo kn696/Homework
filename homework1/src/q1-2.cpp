@@ -1,47 +1,55 @@
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 using namespace std;
 
-int ack(int m, int n)
+int **create_memo(int m_size, int n_size)
 {
-    const int MAX_STACK = 10000;
-    int stack[MAX_STACK];
-    int top = 0;
-
-    stack[top++] = m;
-
-    while (top > 0)
+    int **memo = new int *[m_size];
+    for (int i = 0; i < m_size; ++i)
     {
-        m = stack[--top];
-        if (m == 0)
-        {
-            n = n + 1;
-        }
-        else if (n == 0)
-        {
-            stack[top++] = m - 1;
-            n = 1;
-        }
-        else
-        {
-            stack[top++] = m - 1;
-            stack[top++] = m;
-            n = n - 1;
-        }
-
-        if (top >= MAX_STACK)
-        {
-            cout << "Stack overflow!" << endl;
-            return -1;
-        }
+        memo[i] = new int[n_size];
+        for (int j = 0; j < n_size; ++j)
+            memo[i][j] = -1; // -1 表示尚未計算
     }
-    return n;
+    return memo;
+}
+
+int ack(int m, int n, int **memo)
+{
+    if (m == 0)
+        return n + 1;
+    if (memo[m][n] != -1)
+        return memo[m][n];
+
+    int result;
+    if (n == 0)
+        result = ack(m - 1, 1, memo);
+    else
+        result = ack(m - 1, ack(m, n - 1, memo), memo);
+
+    memo[m][n] = result;
+    return result;
 }
 
 int main()
 {
-    int m = 2, n = 3;
-    int ans = ack(m, n);
-    cout << ans << endl;
+    int m, n;
+    cout << "請輸入 m n：";
+    cin >> m >> n;
+
+    // 動態配置 memo 表
+    int m_size = m + 1;
+    int n_size = n + 1;
+
+    int **memo = create_memo(m_size, max(100, n_size)); // 為避免 recursive call n+1、n+2 導致 out of bound，可設定較大的 n_size
+
+    int result = ack(m, n, memo);
+    cout << "Ack(" << m << ", " << n << ") = " << result << endl;
+
+    // 釋放記憶體
+    for (int i = 0; i < m_size; ++i)
+        delete[] memo[i];
+    delete[] memo;
+
     return 0;
 }
