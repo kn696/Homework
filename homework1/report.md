@@ -40,8 +40,8 @@ int main()
 
 ## 效能分析
 
-1. 時間複雜度：根據m的輸入成指數增長。(最明顯)
-2. 空間複雜度：O(ack(m, n))。
+1. 時間複雜度：根據m的輸入成超指數增長(我不會算)
+2. 空間複雜度：O(2**n)。
 
 ## 測試與驗證
 
@@ -55,15 +55,10 @@ int main()
 | 測試四   | $m = 4$ $n = 1$ | 65533    | 65533    |
 | 測試五   | $m = 1$ $n = 4$ | 6        | 6        |
 
-### 編譯與執行指令
-
-在online compiler內執行，沒有執行指令與編譯
-
 ### 結論
 
-1. 程式能正確計算Ackermann 函數的輸出。  
+1. 程式能正確計算Ackermann 函數的輸出
 2. m越大，所需計算時間越多，符合預期。  
-3. 測試案例將m跟n以不同大小排列，驗證程式可行性，及所需時間差異
 
 ## 效能量測
 
@@ -126,49 +121,134 @@ int main()
 
 ### 解題策略
 
-1. 在原有的基礎上將呼叫自己的過程拿掉，改為透過堆疊的方式來取代遞迴
+1. 使用動態配置的二維陣列來做查表
+2. 再加上用堆疊的方式模擬遞迴
 
 ## 程式實作
 
 以下為主要程式碼：
 
 ```cpp
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
+#include <string>
 using namespace std;
 
-int ack(int m, int n) {
-    const int MAX_STACK = 10000;
-    int stack[MAX_STACK];
+
+int** memo = nullptr;
+int memo_rows = 0;
+int memo_cols = 0;
+
+
+void ensure_memo_size(int m, int n) {
+    int new_rows = max(memo_rows, m + 1);
+    int new_cols = max(memo_cols, n + 1);
+
+    if (new_rows > memo_rows) {
+        int** new_memo = new int*[new_rows];
+        for (int i = 0; i < new_rows; ++i) {
+            if (i < memo_rows)
+                new_memo[i] = memo[i];
+            else {
+                new_memo[i] = new int[new_cols];
+                for (int j = 0; j < new_cols; ++j)
+                    new_memo[i][j] = -1;
+            }
+        }
+        for (int i = 0; i < memo_rows; ++i) {
+            int* new_row = new int[new_cols];
+            for (int j = 0; j < new_cols; ++j)
+                new_row[j] = (j < memo_cols) ? memo[i][j] : -1;
+            delete[] memo[i];
+            new_memo[i] = new_row;
+        }
+        delete[] memo;
+        memo = new_memo;
+        memo_rows = new_rows;
+        memo_cols = new_cols;
+    } else if (new_cols > memo_cols) {
+        for (int i = 0; i < memo_rows; ++i) {
+            int* new_row = new int[new_cols];
+            for (int j = 0; j < new_cols; ++j)
+                new_row[j] = (j < memo_cols) ? memo[i][j] : -1;
+            delete[] memo[i];
+            memo[i] = new_row;
+        }
+        memo_cols = new_cols;
+    }
+}
+
+
+int ackermann(int m_init, int n_init) {
+    const int STACK_SIZE = 1000000;
+    int* stack_m = new int[STACK_SIZE];
+    int* stack_n = new int[STACK_SIZE];
     int top = 0;
 
-    stack[top++] = m;
+    stack_m[top] = m_init;
+    stack_n[top] = n_init;
+    top++;
 
     while (top > 0) {
-        m = stack[--top];
-        if (m == 0) {
-            n = n + 1;
-        } else if (n == 0) {
-            stack[top++] = m - 1;
-            n = 1;
-        } else {
-            stack[top++] = m - 1; 
-            stack[top++] = m;     
-            n = n - 1;
+        top--;
+        int m = stack_m[top];
+        int n = stack_n[top];
+
+        ensure_memo_size(m, n);
+
+        if (memo[m][n] != -1) {
+            if (top == 0) {
+                int result = memo[m][n];
+                delete[] stack_m;
+                delete[] stack_n;
+                return result;
+            }
+            stack_n[top - 1] = memo[m][n];
+            continue;
         }
 
-        if (top >= MAX_STACK) {
-            cout << "Stack overflow!" << endl;
-            return -1;
+        int result;
+        if (m == 0) {
+            result = n + 1;
+        } else if (n == 0) {
+            stack_m[top++] = m - 1;
+            stack_n[top - 1] = 1;
+            continue;
+        } else {
+            stack_m[top++] = m - 1;
+            stack_m[top++] = m;
+            stack_n[top - 1] = n - 1;
+            continue;
         }
+
+        memo[m][n] = result;
+        if (top == 0) {
+            delete[] stack_m;
+            delete[] stack_n;
+            return result;
+        }
+        stack_n[top - 1] = result;
     }
-    return n;
+
+    delete[] stack_m;
+    delete[] stack_n;
+    return -1;
 }
 
 int main() {
-    int m = 2, n = 3;
-    int ans = ack(m, n);
-    cout << ans << endl;
+    int m = 4, n = 1;
+
+
+    memo = nullptr;
+    memo_rows = memo_cols = 0;
+
+    int result = ackermann(m, n);
+    cout << "Ack(" << m << ", " << n << ") = " << result << endl;
+
+    for (int i = 0; i < memo_rows; ++i)
+        delete[] memo[i];
+    delete[] memo;
+
     return 0;
 }
 
@@ -196,7 +276,8 @@ int main() {
 
 ### 結論
 
-1. 程式能正確計算Ackermann 函數的輸出。  
+1. 程式能正確計算Ackermann 函數的輸出
+2. 即便用了查表法在做計算時還是很花時間
 
 ## 效能量測
 
@@ -207,55 +288,141 @@ int main() {
 以下為測量程式碼:
 
 ```cpp
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
+#include <string>
 using namespace std;
+
+
+int** memo = nullptr;
+int memo_rows = 0;
+int memo_cols = 0;
 
 int call_count = 0;
 int max_depth = 0;
 int current_depth = 0;
 
-int ack(int m, int n) {
-    const int MAX_STACK = 10000;
-    int stack[MAX_STACK];
+void ensure_memo_size(int m, int n) {
+    int new_rows = max(memo_rows, m + 1);
+    int new_cols = max(memo_cols, n + 1);
+
+    if (new_rows > memo_rows) {
+        int** new_memo = new int*[new_rows];
+        for (int i = 0; i < new_rows; ++i) {
+            if (i < memo_rows)
+                new_memo[i] = memo[i];
+            else {
+                new_memo[i] = new int[new_cols];
+                for (int j = 0; j < new_cols; ++j)
+                    new_memo[i][j] = -1;
+            }
+        }
+        for (int i = 0; i < memo_rows; ++i) {
+            int* new_row = new int[new_cols];
+            for (int j = 0; j < new_cols; ++j)
+                new_row[j] = (j < memo_cols) ? memo[i][j] : -1;
+            delete[] memo[i];
+            new_memo[i] = new_row;
+        }
+        delete[] memo;
+        memo = new_memo;
+        memo_rows = new_rows;
+        memo_cols = new_cols;
+    } else if (new_cols > memo_cols) {
+        for (int i = 0; i < memo_rows; ++i) {
+            int* new_row = new int[new_cols];
+            for (int j = 0; j < new_cols; ++j)
+                new_row[j] = (j < memo_cols) ? memo[i][j] : -1;
+            delete[] memo[i];
+            memo[i] = new_row;
+        }
+        memo_cols = new_cols;
+    }
+}
+
+
+int ackermann(int m_init, int n_init) {
+    const int STACK_SIZE = 1000000;
+    int* stack_m = new int[STACK_SIZE];
+    int* stack_n = new int[STACK_SIZE];
     int top = 0;
+    
     call_count++;
     current_depth++;
     if (current_depth > max_depth) max_depth = current_depth;
     
-    stack[top++] = m;
+    stack_m[top] = m_init;
+    stack_n[top] = n_init;
+    top++;
 
     while (top > 0) {
-        m = stack[--top];
-        if (m == 0) {
-            n = n + 1;
-        } else if (n == 0) {
-            stack[top++] = m - 1;
-            n = 1;
-        } else {
-            stack[top++] = m - 1; 
-            stack[top++] = m;     
-            n = n - 1;
+        top--;
+        int m = stack_m[top];
+        int n = stack_n[top];
+
+        ensure_memo_size(m, n);
+
+        if (memo[m][n] != -1) {
+            if (top == 0) {
+                int result = memo[m][n];
+                delete[] stack_m;
+                delete[] stack_n;
+                return result;
+            }
+            stack_n[top - 1] = memo[m][n];
+            continue;
         }
 
-        if (top >= MAX_STACK) {
-            cout << "Stack overflow!" << endl;
-            return -1;
+        int result;
+        if (m == 0) {
+            result = n + 1;
+        } else if (n == 0) {
+            stack_m[top++] = m - 1;
+            stack_n[top - 1] = 1;
+            continue;
+        } else {
+            stack_m[top++] = m - 1;
+            stack_m[top++] = m;
+            stack_n[top - 1] = n - 1;
+            continue;
         }
+
+        memo[m][n] = result;
+        if (top == 0) {
+            delete[] stack_m;
+            delete[] stack_n;
+            return result;
+        }
+        stack_n[top - 1] = result;
     }
-    return n;
+    
+    
+    current_depth--;
+    delete[] stack_m;
+    delete[] stack_n;
+    return -1;
 }
 
 int main() {
-    int m = 2, n = 3;
+    int m = 3, n = 3;
+
+
+    memo = nullptr;
+    memo_rows = memo_cols = 0;
     clock_t start = clock();
-    int ans = ack(m, n);
+    int result = ackermann(m, n);
     clock_t end = clock();
     double dur = 1000.0 * (end - start) / CLOCKS_PER_SEC;
-    cout << ans << "\n";
+    cout << "Ack(" << m << ", " << n << ") = " << result << endl;
     cout << dur << "\n";
+
+    for (int i = 0; i < memo_rows; ++i)
+        delete[] memo[i];
+    delete[] memo;
+
     return 0;
 }
+
 ```
 
 ### 五項測試案例所需時間
@@ -333,10 +500,6 @@ int main() {
 | 測試一   | S[] = {2, 4, 5}     | [ ],[ 5 ],[ 4 ],[ 4 5 ],[ 2 ],[ 2 5 ],[ 2 4 ],[ 2 4 5 ]                                                         |
 | 測試二   | S[] = {3, 6, 5, 7}  | [ 5 7 ],[ 6 ],[ 6 7 ],[ 6 5 ],[ 6 5 7 ],[ 3 ],[ 3 7 ],[ 3 5 ],[ 3 5 7 ],[ 3 6 ],[ 3 6 7 ],[ 3 6 5 ],[ 3 6 5 7 ] |
 
-### 編譯與執行指令
-
-在online compiler內執行，沒有執行指令與編譯
-
 ### 結論
 
 1. 程式能正確列出所有子集合。  
@@ -402,8 +565,6 @@ int main() {
 |----------|--------------------|----------|----------|
 | 測試一   | S[] = {2, 4, 5}    | 0.01ms  | 0.044ms  |
 | 測試二   | S[] = {3, 6, 5, 7} | 0.05ms  | 0.05ms  |
-
-
 
 ## 心得
 
